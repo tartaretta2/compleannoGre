@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compleanno Gre</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      padding: 40px 16px;
+      min-height: 100vh;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 32px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+    }
+    h1 { font-size: 1.4rem; margin-bottom: 8px; color: #222; }
+    .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 28px; }
+    label.field-label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #333;
+    }
+    .color-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .color-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .color-option:hover:not(.disabled) { border-color: #999; }
+    .color-option.selected { border-color: #333; background: #f9f9f9; }
+    .color-option.disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      background: #f0f0f0;
+    }
+    .color-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,0,0,0.15);
+      flex-shrink: 0;
+    }
+    .color-name { font-size: 0.85rem; color: #333; }
+    .taken-badge {
+      font-size: 0.7rem;
+      color: #999;
+      margin-left: auto;
+    }
+    .checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 28px;
+      padding: 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .checkbox-row input { width: 18px; height: 18px; margin-top: 1px; cursor: pointer; }
+    .checkbox-row span { font-size: 0.9rem; color: #333; }
+    .nome-field { margin-bottom: 28px; }
+    .nome-field input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .nome-field input:focus { border-color: #333; }
+    button[type=submit] {
+      width: 100%;
+      padding: 14px;
+      background: #222;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button[type=submit]:hover:not(:disabled) { background: #444; }
+    button[type=submit]:disabled { background: #aaa; cursor: not-allowed; }
+    .msg { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.9rem; text-align: center; }
+    .msg.success { background: #e6f4ea; color: #2e7d32; }
+    .msg.error { background: #fdecea; color: #c62828; }
+    .loading { text-align: center; color: #999; padding: 20px; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>📋 Scegli il tuo colore!</h1>
+  <p class="subtitle">Scegli il tuo colore (max 2 persone per colore)</p>
+
+  <div id="loading" class="loading">Caricamento colori disponibili...</div>
+  <div id="form-content" style="display:none">
+
+    <div class="nome-field">
+      <label class="field-label">Il tuo nome</label>
+      <input type="text" id="nome" placeholder="Es. Marco" autocomplete="off">
+    </div>
+
+    <label class="field-label">Scegli il tuo colore</label>
+    <div class="color-grid" id="color-grid"></div>
+
+    <label class="field-label">Altro</label>
+    <label class="checkbox-row">
+      <input type="checkbox" id="aiuto">
+      <span>Ho bisogno di una mano con i vestiti</span>
+    </label>
+
+    <button type="submit" id="submit-btn" disabled>Invia</button>
+    <div id="msg"></div>
+  </div>
+</div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxg2gN4VIm0o1Ht6PrqwlHwGxjnIL_l7MrcsrveKoX65uaZEfHm9prL9BhbeMN5fG8eoA/exec';
+
+const COLORS = [
+  { id: 'giallo',        label: 'Giallo',         hex: '#FFD600' },
+  { id: 'rosso',         label: 'Rosso / Bordeaux', hex: '#B71C1C' },
+  { id: 'verde',         label: 'Verde',           hex: '#2E7D32' },
+  { id: 'rosa',          label: 'Rosa / Fucsia',   hex: '#E91E8C' },
+  { id: 'viola',         label: 'Viola / Lilla',   hex: '#7B1FA2' },
+  { id: 'azzurro',       label: 'Azzurro',         hex: '#29B6F6' },
+  { id: 'beige',         label: 'Beige / Grigio',  hex: '#BDBDBD' },
+  { id: 'bianco',        label: 'Bianco',          hex: '#FFFFFF' },
+  { id: 'nero',          label: 'Nero',            hex: '#212121' },
+  { id: 'marrone',       label: 'Marrone',         hex: '#5D4037' },
+];
+
+let selectedColor = null;
+let colorCounts = {};
+
+async function loadColors() {
+  try {
+    const res = await fetch(`${SCRIPT_URL}?action=getColors`);
+    const data = await res.json();
+    colorCounts = data.counts || {};
+  } catch(e) {
+    colorCounts = {};
+  }
+  renderColors();
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('form-content').style.display = 'block';
+}
+
+function renderColors() {
+  const grid = document.getElementById('color-grid');
+  grid.innerHTML = '';
+  COLORS.forEach(c => {
+    const taken = colorCounts[c.id] || 0;
+    const disabled = taken >= 2;
+    const div = document.createElement('div');
+    div.className = 'color-option' + (disabled ? ' disabled' : '');
+    div.innerHTML = `
+      <div class="color-dot" style="background:${c.hex}"></div>
+      <span class="color-name">${c.label}</span>
+      ${taken > 0 ? `<span class="taken-badge">${taken}/2</span>` : ''}
+    `;
+    if (!disabled) {
+      div.addEventListener('click', () => selectColor(c.id, div));
+    }
+    grid.appendChild(div);
+  });
+}
+
+function selectColor(id, el) {
+  document.querySelectorAll('.color-option').forEach(d => d.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedColor = id;
+  document.getElementById('submit-btn').disabled = false;
+}
+
+document.getElementById('submit-btn').addEventListener('click', async () => {
+  const nome = document.getElementById('nome').value.trim();
+  const aiuto = document.getElementById('aiuto').checked ? 'Sì' : 'No';
+  const btn = document.getElementById('submit-btn');
+  const msg = document.getElementById('msg');
+
+  if (!nome) { showMsg('Inserisci il tuo nome.', 'error'); return; }
+  if (!selectedColor) { showMsg('Scegli un colore.', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Invio in corso...';
+
+  try {
+    const params = new URLSearchParams({ action: 'submit', nome, colore: selectedColor, aiuto });
+    const res = await fetch(`${SCRIPT_URL}?${params}`);
+    const data = await res.json();
+
+    if (data.success) {
+      showMsg('✅ Risposta salvata, grazie!', 'success');
+      document.getElementById('form-content').style.display = 'none';
+    } else {
+      showMsg('⚠️ ' + (data.error || 'Errore durante il salvataggio.'), 'error');
+      btn.disabled = false;
+      btn.textContent = 'Invia';
+      // Ricarica i colori aggiornati
+      await loadColors();
+    }
+  } catch(e) {
+    showMsg('Errore di rete. Riprova.', 'error');
+    btn.disabled = false;
+    btn.textContent = 'Invia';
+  }
+});
+
+function showMsg(text, type) {
+  const msg = document.getElementById('msg');
+  msg.className = 'msg ' + type;
+  msg.textContent = text;
+}
+
+loadColors();
+</script>
+</body>
+</html>
